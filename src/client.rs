@@ -91,12 +91,16 @@ impl Client {
             tweet_id: tweet.id_str,
             user_id: tweet.user_id_str,
             text: tweet.full_text,
-            image_urls: tweet
+            images: tweet
                 .entities
                 .media
                 .unwrap_or(Vec::new())
                 .into_iter()
-                .map(|media| media.media_url_https)
+                .map(|media| Image {
+                    url: media.media_url_https,
+                    width: media.sizes.large.w,
+                    height: media.sizes.large.h,
+                })
                 .collect(),
         })
     }
@@ -152,7 +156,14 @@ pub struct PinnedTweet {
     tweet_id: String,
     user_id: String,
     text: String,
-    image_urls: Vec<String>,
+    images: Vec<Image>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Image {
+    url: String,
+    width: usize,
+    height: usize,
 }
 
 #[derive(Deserialize, Debug)]
@@ -171,4 +182,16 @@ pub struct Entities {
 #[derive(Deserialize, Debug)]
 pub struct Media {
     pub media_url_https: String,
+    pub sizes: Sizes,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Sizes {
+    large: Size,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Size {
+    h: usize,
+    w: usize,
 }
