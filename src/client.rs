@@ -53,7 +53,7 @@ impl Client {
                 "variables",
                 &serde_json::to_string(&GetUserTweets {
                     user_id: user_id.to_string(),
-                    count: 5,
+                    count: 1,
                     with_tweet_quote_count: false,
                     include_promoted_content: false,
                     with_super_follows_user_fields: false,
@@ -94,6 +94,7 @@ impl Client {
             image_urls: tweet
                 .entities
                 .media
+                .unwrap_or(Vec::new())
                 .into_iter()
                 .map(|media| media.media_url_https)
                 .collect(),
@@ -164,7 +165,7 @@ pub struct Legacy {
 
 #[derive(Deserialize, Debug)]
 pub struct Entities {
-    pub media: Vec<Media>,
+    pub media: Option<Vec<Media>>,
 }
 
 #[derive(Deserialize, Debug)]
