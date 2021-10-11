@@ -45,14 +45,14 @@ impl Client {
         .await
     }
 
-    pub async fn get_pinned_tweet(&self, user_id: String) -> Result<PinnedTweet> {
+    pub async fn get_pinned_tweet(&self, user_id: u64) -> Result<PinnedTweet> {
         let legacy = self
             .client
             .post("https://api.twitter.com/graphql/urVlCWe1DTfZQbYRlTzxNA/UserTweets")
             .query(&[(
                 "variables",
                 &serde_json::to_string(&GetUserTweets {
-                    user_id: user_id.clone(),
+                    user_id: user_id.to_string(),
                     count: 5,
                     with_tweet_quote_count: false,
                     include_promoted_content: false,
