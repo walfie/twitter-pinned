@@ -18,14 +18,14 @@ impl Client {
         let req_client = reqwest::Client::builder()
             .user_agent(user_agent)
             .build()
-            .expect("failed to create client");
+            .context("failed to create client")?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
             AUTHORIZATION,
             format!("Bearer {}", bearer_token)
                 .parse()
-                .expect("failed to parse bearer token"),
+                .context("failed to parse bearer token")?,
         );
 
         let mut client = Self {
@@ -71,7 +71,7 @@ impl Client {
             .json::<Value>()
             .await?;
 
-        let pinned = json
+        let result = json
             .pointer("/data/user/result/timeline/timeline/instructions")
             .context("failed to get timeline instructions")?
             .as_array()
@@ -79,18 +79,31 @@ impl Client {
             .iter()
             .find_map(|value| match value.pointer("/type") {
                 Some(Value::String(s)) if s == "TimelinePinEntry" => {
-                    value.pointer("/entry/content/itemContent/tweet_results/result/legacy")
+                    value.pointer("/entry/content/itemContent/tweet_results/result")
                 }
                 _ => None,
             });
 
-        let tweet = match pinned {
+        let json = match result {
             None => return Ok(None),
-            Some(json) => serde_json::from_value::<Legacy>(json.clone())
-                .context("failed to parse legacy object")?,
+            Some(json) => json,
+        };
+
+        let tweet = serde_json::from_value::<Legacy>(
+            json.pointer("/legacy")
+                .context("failed to find legacy field")?
+                .clone(),
+        )
+        .context("failed to parse pinned tweet")?;
+
+        let screen_name = match json.pointer("/core/user/legacy/screen_name") {
+            Some(Value::String(s)) => s.to_owned(),
+            _ => anyhow::bail!("failed to find screen_name in pinned tweet"),
         };
 
         Ok(Some(PinnedTweet {
+            screen_name,
+            created_at: tweet.created_at,
             tweet_id: tweet.id_str,
             user_id: tweet.user_id_str,
             text: tweet.full_text,
@@ -156,6 +169,8 @@ pub struct GetUserTweets {
 
 #[derive(Debug, Serialize)]
 pub struct PinnedTweet {
+    screen_name: String,
+    created_at: String,
     tweet_id: String,
     user_id: String,
     text: String,
@@ -174,6 +189,7 @@ pub struct Legacy {
     pub id_str: String,
     pub user_id_str: String,
     pub full_text: String,
+    pub created_at: String,
     pub entities: Entities,
 }
 
