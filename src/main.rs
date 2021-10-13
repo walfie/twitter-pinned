@@ -8,10 +8,13 @@ pub struct Opt {
     pub user_agent: String,
     #[structopt(long, env, default_value = DEFAULT_BEARER_TOKEN)]
     pub bearer_token: String,
-    #[structopt(long, env)]
+
+    /// Pretty print JSON output
+    #[structopt(long)]
     pub pretty: bool,
-    #[structopt(required = true)]
+
     /// Twitter user IDs
+    #[structopt(required = true)]
     pub user_ids: Vec<u64>,
 }
 
@@ -31,7 +34,10 @@ async fn main() -> Result<()> {
 
     let tweets = futures::future::try_join_all(reqs)
         .await
-        .context("failed to get pinned tweet")?;
+        .context("failed to get pinned tweet")?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
     let out = if opt.pretty {
         serde_json::to_string_pretty(&tweets)?

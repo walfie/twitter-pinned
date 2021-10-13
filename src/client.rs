@@ -45,8 +45,8 @@ impl Client {
         .await
     }
 
-    pub async fn get_pinned_tweet(&self, user_id: u64) -> Result<PinnedTweet> {
-        let legacy = self
+    pub async fn get_pinned_tweet(&self, user_id: u64) -> Result<Option<PinnedTweet>> {
+        let json: Value = self
             .client
             .post("https://api.twitter.com/graphql/urVlCWe1DTfZQbYRlTzxNA/UserTweets")
             .query(&[(
@@ -69,7 +69,9 @@ impl Client {
             .send()
             .await?
             .json::<Value>()
-            .await?
+            .await?;
+
+        let pinned = json
             .pointer("/data/user/result/timeline/timeline/instructions")
             .context("failed to get timeline instructions")?
             .as_array()
@@ -80,14 +82,15 @@ impl Client {
                     value.pointer("/entry/content/itemContent/tweet_results/result/legacy")
                 }
                 _ => None,
-            })
-            .context("failed to get pinned tweet media")?
-            .clone();
+            });
 
-        let tweet =
-            serde_json::from_value::<Legacy>(legacy).context("failed to parse legacy object")?;
+        let tweet = match pinned {
+            None => return Ok(None),
+            Some(json) => serde_json::from_value::<Legacy>(json.clone())
+                .context("failed to parse legacy object")?,
+        };
 
-        Ok(PinnedTweet {
+        Ok(Some(PinnedTweet {
             tweet_id: tweet.id_str,
             user_id: tweet.user_id_str,
             text: tweet.full_text,
@@ -102,7 +105,7 @@ impl Client {
                     height: media.sizes.large.h,
                 })
                 .collect(),
-        })
+        }))
     }
 
     async fn get_token(&mut self) -> Result<()> {
