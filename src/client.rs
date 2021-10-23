@@ -33,7 +33,10 @@ impl Client {
             headers,
         };
 
-        client.get_token().await?;
+        client
+            .get_token()
+            .await
+            .context("failed to initialize client")?;
         Ok(client)
     }
 
@@ -76,10 +79,11 @@ impl Client {
         }
 
         let json = serde_json::from_str::<Value>(&body)?;
-        Self::parse_json(json).with_context(|| format!("failed to get value from JSON: {}", &body))
+        Self::extract_pinned_tweet_json(json)
+            .with_context(|| format!("failed to get value from JSON: {}", &body))
     }
 
-    fn parse_json(json: Value) -> Result<Option<PinnedTweet>> {
+    fn extract_pinned_tweet_json(json: Value) -> Result<Option<PinnedTweet>> {
         let result = json
             .pointer("/data/user/result/timeline/timeline/instructions")
             .context("failed to get timeline instructions")?
@@ -131,15 +135,21 @@ impl Client {
     }
 
     async fn get_token(&mut self) -> Result<()> {
-        let token = self
+        let resp = self
             .client
             .post("https://api.twitter.com/1.1/guest/activate.json")
             .headers(self.headers.clone())
             .send()
             .await
-            .context("failed to call Twitter Activate API")?
-            .json::<Activate>()
-            .await
+            .context("failed to call Twitter Activate API")?;
+
+        let status = resp.status();
+        let body = resp.text().await?;
+        if !status.is_success() {
+            anyhow::bail!("received error {} with body {}", status, body);
+        }
+
+        let token = serde_json::from_str::<Activate>(&body)
             .context("failed to parse response of Twitter Activate API")?
             .guest_token;
 
