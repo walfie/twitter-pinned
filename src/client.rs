@@ -46,7 +46,7 @@ impl Client {
     }
 
     pub async fn get_pinned_tweet(&self, user_id: u64) -> Result<Option<PinnedTweet>> {
-        let json: Value = self
+        let resp = self
             .client
             .post("https://api.twitter.com/graphql/urVlCWe1DTfZQbYRlTzxNA/UserTweets")
             .query(&[(
@@ -67,10 +67,19 @@ impl Client {
             )])
             .headers(self.headers.clone())
             .send()
-            .await?
-            .json::<Value>()
             .await?;
 
+        let status = resp.status();
+        let body = resp.text().await?;
+        if !status.is_success() {
+            anyhow::bail!("received error {} with body {}", status, body);
+        }
+
+        let json = serde_json::from_str::<Value>(&body)?;
+        Self::parse_json(json).with_context(|| format!("failed to get value from JSON: {}", &body))
+    }
+
+    fn parse_json(json: Value) -> Result<Option<PinnedTweet>> {
         let result = json
             .pointer("/data/user/result/timeline/timeline/instructions")
             .context("failed to get timeline instructions")?
