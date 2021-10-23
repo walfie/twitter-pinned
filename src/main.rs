@@ -16,12 +16,37 @@ pub struct Opt {
     /// Twitter user IDs
     #[structopt(required = true)]
     pub user_ids: Vec<u64>,
+
+    /// Number of times to retry on failure
+    #[structopt(long, env, default_value = "0")]
+    pub retry: usize,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let opt = Opt::from_args();
 
+    let mut attempt = 0;
+
+    loop {
+        if let Err(e) = run(&opt).await {
+            if attempt < opt.retry {
+                attempt += 1;
+                eprintln!("Error: {:?}\n", e);
+                eprintln!(
+                    "Retrying on failure (reattempt {} of {})",
+                    attempt, opt.retry
+                );
+            } else {
+                return Err(e);
+            }
+        } else {
+            return Ok(());
+        }
+    }
+}
+
+async fn run(opt: &Opt) -> Result<()> {
     let client = Client::build(opt.user_agent.clone(), opt.bearer_token.clone()).await?;
 
     let reqs = opt.user_ids.iter().map(|id| {
