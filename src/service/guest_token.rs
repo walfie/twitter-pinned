@@ -4,6 +4,7 @@ use http::header::{HeaderValue, InvalidHeaderValue, USER_AGENT};
 use http::{Method, Request, Response};
 use http_body::Body;
 use serde::Deserialize;
+use std::convert::{TryFrom, TryInto};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
