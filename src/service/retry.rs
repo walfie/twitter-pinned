@@ -30,13 +30,14 @@ impl<S> Layer<S> for RetryOnHttpError {
 impl<Resp> Policy<UserId, Resp, BoxError> for RetryOnHttpError {
     type Future = future::Ready<Self>;
 
-    fn retry(&self, _req: &UserId, result: Result<&Resp, &BoxError>) -> Option<Self::Future> {
+    fn retry(&self, user_id: &UserId, result: Result<&Resp, &BoxError>) -> Option<Self::Future> {
         match result {
             Ok(_) => None,
             Err(e) if self.retries_remaining > 0 => {
                 if let Some(error) = e.downcast_ref::<HttpError>() {
                     tracing::warn!(
                         %error,
+                        user_id,
                         retries_remaining = self.retries_remaining,
                         "Retrying request due to HTTP error"
                     );

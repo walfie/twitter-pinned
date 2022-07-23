@@ -13,7 +13,6 @@ use tracing::Span;
 
 use hyper_tls::HttpsConnector;
 use tower::{Service, ServiceBuilder, ServiceExt};
-use tower_http::classify::StatusInRangeAsFailures;
 use tower_http::decompression::DecompressionLayer;
 use tower_http::trace::TraceLayer;
 
@@ -31,10 +30,7 @@ async fn main() -> Result<(), BoxError> {
         opt.bearer_token,
     )?;
 
-    let trace_layer = TraceLayer::new(
-        StatusInRangeAsFailures::new(400..=599).into_make_classifier(),
-    )
-    .on_request(|req: &Request<Body>, _span: &Span| {
+    let trace_layer = TraceLayer::new_for_http().on_request(|req: &Request<Body>, _span: &Span| {
         tracing::debug!("Sending request {} {}", req.method(), req.uri());
     });
 
