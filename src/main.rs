@@ -1,7 +1,7 @@
 use structopt::StructOpt;
 
 use twitter_pinned::error::BoxError;
-use twitter_pinned::service::{GuestTokenService, PinnedTweetService};
+use twitter_pinned::service::{GuestTokenService, PinnedTweetService, RetryOnHttpError};
 use twitter_pinned::{DEFAULT_BEARER_TOKEN, DEFAULT_USER_AGENT};
 
 use anyhow::{anyhow, Context, Result};
@@ -38,14 +38,15 @@ async fn main() -> Result<(), BoxError> {
         tracing::debug!("Sending request {} {}", req.method(), req.uri());
     });
 
-    // TODO: Add reconnect/retry
     let service = ServiceBuilder::new()
         .layer(trace_layer)
         .layer(DecompressionLayer::new())
         .timeout(Duration::from_secs(5))
         .service(service);
 
-    let service = PinnedTweetService::new(service);
+    let service = ServiceBuilder::new()
+        .retry(RetryOnHttpError::new(opt.retry))
+        .service(PinnedTweetService::new(service));
 
     let reqs = opt.user_ids.iter().map(|id| {
         let mut service = service.clone();
