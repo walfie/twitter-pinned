@@ -18,7 +18,9 @@ use tower_http::trace::TraceLayer;
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
-    tracing_subscriber::fmt::fmt().init();
+    tracing_subscriber::fmt::fmt()
+        .with_writer(std::io::stderr)
+        .init();
 
     let opt = Opt::from_args();
 
