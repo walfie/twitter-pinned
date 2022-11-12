@@ -62,6 +62,11 @@ where
 
     fn call(&mut self, user_id: UserId) -> Self::Future {
         let mut service = self.service.clone();
+
+        // Use the service that was ready.
+        // https://docs.rs/tower/0.4.13/tower/trait.Service.html#be-careful-when-cloning-inner-services
+        std::mem::swap(&mut self.service, &mut service);
+
         Box::pin(async move {
             let req = Request::builder()
                 .uri(graphql_url(user_id)?)
