@@ -78,6 +78,10 @@ where
         let guest_token_lock = self.guest_token.clone();
         let mut service = self.service.clone();
 
+        // Use the service that was ready.
+        // https://docs.rs/tower/0.4.13/tower/trait.Service.html#be-careful-when-cloning-inner-services
+        std::mem::swap(&mut self.service, &mut service);
+
         Box::pin(async move {
             let stored_token = (*guest_token_lock.read().unwrap()).clone();
             let guest_token = match stored_token {
